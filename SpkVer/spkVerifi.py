@@ -7,7 +7,7 @@ import os
 import shutil
 import traceback
 
-threshold = 0.95 #0.86 suggested in huggingface
+threshold = 0.80 #0.86 suggested in huggingface
 sampling_rate = 16000
 # parameters for sil trimming -- Energy based
 sil_threshold_energy=0.5
@@ -49,11 +49,27 @@ class SpeakerVerification:
             audio_np = np.array(audio)
             # Trim start and end silences
             # audio_np = self.__trim_sil_decibel(audio_np)
+            audio_np = self.__remove_silence(self.__normalize_audio(audio_np))
             return audio_np
         except Exception as e:
             print(traceback.format_exc())
             print(f"Error:: {e}")
     
+    # Function to normalize an audio signal to a specified maximum amplitude
+    def __normalize_audio(self, audio_signal, max_amplitude=0.5):
+        max_value = np.max(np.abs(audio_signal))
+        normalized_audio = audio_signal * (max_amplitude / max_value)
+        return normalized_audio
+
+    # Function to remove beginning and end silence regions from an audio signal
+    def __remove_silence(self, audio_signal, threshold=0.01, pad_duration=0.5):
+        energy = librosa.feature.rms(y=audio_signal)
+        frames = np.nonzero(energy > threshold)
+        indices = librosa.frames_to_samples(frames)[1]
+        trimmed_audio = audio_signal[indices[0]:indices[-1]]
+        trimmed_audio = np.pad(trimmed_audio, int(pad_duration * audio_signal.shape[0]), mode='reflect')
+        return trimmed_audio
+
     # Not working some error - has to fix it
     def __trim_sil_energy(self, audio_data):
         energy = librosa.feature.rms(y=audio_data, frame_length=2048, hop_length=512)
