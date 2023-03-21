@@ -1,4 +1,4 @@
-# Speaker verfication using Microsoft WavLM + X-Vectors
+# Speaker verification using Microsoft WavLM + X-Vectors
 from transformers import Wav2Vec2FeatureExtractor, WavLMForXVector
 import torch
 import librosa
@@ -6,6 +6,7 @@ import numpy as np
 import os
 import shutil
 import traceback
+from speechbrain.pretrained import SpeakerRecognition
 
 threshold = 0.80 #0.86 suggested in huggingface
 sampling_rate = 16000
@@ -21,16 +22,23 @@ class SpeakerVerification:
 
     def __init__(self, model=None):
         # Loading the models
+        self.model_class = None
         try:
-            if model is None or model == 'base-plus':
+            if model is None or model == 'speechbrain':
+                self.speechbrain_verification = SpeakerRecognition.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb", savedir="pretrained_models/spkrec-ecapa-voxceleb")
+                self.model_class = 'speechbrain'
+            elif model == 'wavlm-base-plus':
                 self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained('microsoft/wavlm-base-plus-sv')
                 self.model = WavLMForXVector.from_pretrained('microsoft/wavlm-base-plus-sv')
-            elif model == 'large':
+                self.model_class = 'wavlm'
+            elif model == 'wavlm-large':
                 self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained('microsoft/wavlm-large')
                 self.model = WavLMForXVector.from_pretrained('microsoft/wavlm-large')
-            elif model == 'base':
+                self.model_class = 'wavlm'
+            elif model == 'wavlm-base':
                 self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained('microsoft/wavlm-base-sv')
                 self.model = WavLMForXVector.from_pretrained('microsoft/wavlm-base-sv')
+                self.model_class = 'wavlm'
             else:
                 print(f"Error:: model name not found: {model}")
         except Exception as e:
@@ -38,8 +46,10 @@ class SpeakerVerification:
             print(f"Error:: {e}")
         # Defining the speaker ref files dictionary
         self.spk_ref = {}
+        self.spk_ref_files = {}
         self.__load_spk_ref()
         # print(self.spk_ref)
+        # print(self.spk_ref_files)
     
     def __load_audio_np(self, filename):
         try:
@@ -48,7 +58,6 @@ class SpeakerVerification:
             # Convert audio to numpy array
             audio_np = np.array(audio)
             # Trim start and end silences
-            # audio_np = self.__trim_sil_decibel(audio_np)
             audio_np = self.__remove_silence(self.__normalize_audio(audio_np))
             return audio_np
         except Exception as e:
@@ -69,31 +78,6 @@ class SpeakerVerification:
         trimmed_audio = audio_signal[indices[0]:indices[-1]]
         trimmed_audio = np.pad(trimmed_audio, int(pad_duration * audio_signal.shape[0]), mode='reflect')
         return trimmed_audio
-
-    # Not working some error - has to fix it
-    def __trim_sil_energy(self, audio_data):
-        energy = librosa.feature.rms(y=audio_data, frame_length=2048, hop_length=512)
-        # Find non-silent start and end points
-        start_idx = 0
-        while energy[0][start_idx] < sil_threshold_energy:
-            start_idx += 1
-        end_idx = len(energy[0]) - 1
-        while energy[0][end_idx] < sil_threshold_energy:
-            end_idx -= 1
-        # Check if the duration of the trimmed audio is greater than the minimum silence duration
-        start_time = librosa.samples_to_time(start_idx * 512, sr=sampling_rate)
-        end_time = librosa.samples_to_time((end_idx + 1) * 512, sr=sampling_rate)
-        trimmed_duration = end_time - start_time
-        if trimmed_duration < min_silence_duration:
-            return audio_data
-        # Trim the audio data
-        trimmed_audio_data = audio_data[start_idx * 512 : (end_idx + 1) * 512]
-        return trimmed_audio_data
-
-    def __trim_sil_decibel(self, audio_data):
-        # Trim the silences from the beginning and end of the audio signal
-        trimmed_audio_data, _ = librosa.effects.trim(y=audio_data, top_db=sil_threshold_decibel, frame_length=2048, hop_length=512)
-        return trimmed_audio_data
     
     def __load_spk_ref(self, spk_fold=None):
         if spk_fold is None:
@@ -108,15 +92,17 @@ class SpeakerVerification:
                     if spker.startswith('.'):
                         continue
                     self.spk_ref[spker] = []
+                    self.spk_ref_files[spker] = []
                     for audio in os.listdir(f"{self.spk_files_fold}/{spker}"):
                         if audio.startswith('.'):
                             continue
                         self.spk_ref[spker].append(self.__load_audio_np(f"{self.spk_files_fold}/{spker}/{audio}"))
+                        self.spk_ref_files[spker].append(f"{self.spk_files_fold}/{spker}/{audio}")
             except Exception as e:
                 print(traceback.format_exc())
                 print(f"Error:: speaker ref loading failed")
 
-    def __spk_sim(self, ref_audio, test_audio, input_type=None):
+    def __spk_sim_wavlm(self, ref_audio, test_audio, input_type=None):
         # print(input_type)
         if input_type is None or input_type == 'file':
             audio = [self.__load_audio_np(ref_audio), self.__load_audio_np(test_audio)]
@@ -146,6 +132,15 @@ class SpeakerVerification:
         similarity = cosine_sim(embeddings[0], embeddings[1])
         print(f"similarity: {similarity}")
         return similarity
+    
+    def __spk_sim_speechbrain(self, ref_audio, test_audio):
+        try:
+            score, prediction = self.speechbrain_verification.verify_files(ref_audio, test_audio)
+            print(f"similarity: {score}")
+            return score
+        except Exception as e:
+            print(traceback.format_exc())
+            print(f"Error:: {e}")
 
     def add_spk(self, spk_id, audio_file):
         if spk_id in self.spk_ref.keys():
@@ -156,13 +151,13 @@ class SpeakerVerification:
             os.makedirs(f"{self.spk_files_fold}/{spk_id}", exist_ok = True)
             shutil.copyfile(audio_file, f"{self.spk_files_fold}/{spk_id}")
     
-    def verify_spk(self, spk_id, test_audio, test_type=None):
+    def verify_spk_wavlm(self, spk_id, test_audio, test_type=None):
         if test_type is None or test_type == 'array':
             if spk_id not in self.spk_ref.keys():
                 print(f"Error:: audio for {spk_id} not found in DB")
             else:
                 for i in range(0, len(self.spk_ref[spk_id])):
-                    if self.__spk_sim(self.spk_ref[spk_id][i], test_audio, input_type='array') > threshold:
+                    if self.__spk_sim_wavlm(self.spk_ref[spk_id][i], test_audio, input_type='array') > threshold:
                         continue
                     else:
                         return False
@@ -172,10 +167,21 @@ class SpeakerVerification:
                 print(f"Error:: audio for {spk_id} not found in DB")
             else:
                 for i in range(0, len(self.spk_ref[spk_id])):
-                    if self.__spk_sim(self.spk_ref[spk_id][i], self.__load_audio_np(test_audio), input_type='array') > threshold:
+                    if self.__spk_sim_wavlm(self.spk_ref[spk_id][i], self.__load_audio_np(test_audio), input_type='array') > threshold:
                         continue
                     else:
                         return False
                 return True
         else:
             print(f"Error:: invalid test type: {test_type}")
+
+    def verify_spk_speechbrain(self, spk_id, test_audio):
+        if spk_id not in self.spk_ref_files.keys():
+            print(f"Error:: audio for {spk_id} not found in DB")
+        else:
+            for i in range(0, len(self.spk_ref[spk_id])):
+                if self.__spk_sim_speechbrain(self.spk_ref[spk_id][i], test_audio) > threshold:
+                    continue
+                else:
+                    return False
+            return True
