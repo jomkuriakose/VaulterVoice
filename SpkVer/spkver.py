@@ -43,16 +43,23 @@ def run_spk_ver(input_file, request_data):
         file_save_path = os.path.join(FILE_UPLOAD_DIR, filename + "_" + timestamp + "." + ext)
         input_file.save(file_save_path)
         logger.info(f"File saved at {file_save_path}")
-        try:
-            data, samplerate = librosa.load(file_save_path, sr=SAMPLING_RATE)
-        except Exception as e:
-            return jsonify(status="failure", reason='file not found')
         spk_id = request_data["spk_id"] if "spk_id" in request_data else None
         if spk_id is None:
             return jsonify(status="failure", reason='spk_id not found')
+        model = request_data["model"] if "model" in request_data else "speechbrain"
         try:
-            ver_status = spk_ver.verify_spk_wavlm(spk_id, data, test_type == 'array')
-            return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
+            if model == 'speechbrain':
+                ver_status = spk_ver.verify_spk_speechbrain(spk_id, file_save_path)
+                return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
+            elif model == 'wavlm':
+                try:
+                    data, samplerate = librosa.load(file_save_path, sr=SAMPLING_RATE)
+                except Exception as e:
+                    return jsonify(status="failure", reason='file not found')
+                ver_status = spk_ver.verify_spk_wavlm(spk_id, data, test_type == 'array')
+                return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
+            else:
+                return jsonify(status="failure", reason='model not found')
         except Exception as e:
             return jsonify(status="failure", reason='speaker verification failed')
 
