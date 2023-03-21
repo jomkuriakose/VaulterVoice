@@ -1,0 +1,13 @@
+cd SpkVer/
+
+from spkVerifi import SpeakerVerification
+spk_ver = SpeakerVerification()
+# spk_ver = SpeakerVerification(model='large')
+spk_ver.verify_spk('jom','./spk_audio/mohana/mohana_pin.wav')
+spk_ver.verify_spk('jom','./spk_audio/mohana/mohana_open.wav')
+spk_ver.verify_spk('jom','./spk_audio/jom/jom_add_acc.wav')
+spk_ver.verify_spk('jom','./spk_audio/jom/jom_pin_audio.wav')
+spk_ver.verify_spk('mohana','./spk_audio/jom/jom_add_acc.wav')
+spk_ver.verify_spk('mohana','./spk_audio/jom/jom_pin_audio.wav')
+spk_ver.verify_spk('mohana','./spk_audio/mohana/mohana_open.wav')
+spk_ver.verify_spk('mohana','./spk_audio/mohana/mohana_pin.wav')
