@@ -156,13 +156,26 @@ class SpeakerVerification:
             os.makedirs(f"{self.spk_files_fold}/{spk_id}", exist_ok = True)
             shutil.copyfile(audio_file, f"{self.spk_files_fold}/{spk_id}")
     
-    def verify_spk(self, spk_id, test_audio):
-        if spk_id not in self.spk_ref.keys():
-            print(f"Error:: audio for {spk_id} not found in DB")
+    def verify_spk(self, spk_id, test_audio, test_type=None):
+        if test_type is None or test_type == 'array':
+            if spk_id not in self.spk_ref.keys():
+                print(f"Error:: audio for {spk_id} not found in DB")
+            else:
+                for i in range(0, len(self.spk_ref[spk_id])):
+                    if self.__spk_sim(self.spk_ref[spk_id][i], test_audio, input_type='array') > threshold:
+                        continue
+                    else:
+                        return False
+                return True
+        elif test_type == 'audio':
+            if spk_id not in self.spk_ref.keys():
+                print(f"Error:: audio for {spk_id} not found in DB")
+            else:
+                for i in range(0, len(self.spk_ref[spk_id])):
+                    if self.__spk_sim(self.spk_ref[spk_id][i], self.__load_audio_np(test_audio), input_type='array') > threshold:
+                        continue
+                    else:
+                        return False
+                return True
         else:
-            for i in range(0, len(self.spk_ref[spk_id])):
-                if self.__spk_sim(self.spk_ref[spk_id][i], self.__load_audio_np(test_audio), input_type='array') > threshold:
-                    continue
-                else:
-                    return False
-            return True
+            print(f"Error:: invalid test type: {test_type}")
