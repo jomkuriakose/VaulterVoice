@@ -1,13 +1,11 @@
-from flask import Flask, jsonify, request, render_template
+# Flask app to run speaker verification
+from flask import Flask, jsonify, request
 import logging
-import traceback
 import subprocess
 import datetime
-import time
-import librosa
 import os
 
-from spkVerifi import SpeakerVerification
+from speechbrain_spkver import SpeakerVerification
 spk_ver = SpeakerVerification()
 
 FILE_UPLOAD_DIR="/music/jom/Hackathon/VaulterVoice/SpkVer/uploads"
@@ -19,14 +17,10 @@ logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 
-def run_spk_ver_arr(request_data):
-    st = time.time()
-    tmp_dir = None
-    with app.app_context():
-        spkid = json_data["spk_id"]
-        audio_arr = json_data["audio"]
-
 def run_spk_ver(input_file, request_data):
+    '''
+    run spk verification
+    '''
     tmp_dir = None
     with app.app_context():
         timestamp=""
@@ -46,24 +40,16 @@ def run_spk_ver(input_file, request_data):
         spk_id = request_data["spk_id"] if "spk_id" in request_data else None
         if spk_id is None:
             return jsonify(status="failure", reason='spk_id not found')
-        model = request_data["model"] if "model" in request_data else "speechbrain"
         try:
-            if model == 'speechbrain':
-                ver_status = spk_ver.verify_spk_speechbrain(spk_id, file_save_path)
-                return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
-            elif model == 'wavlm':
-                try:
-                    data, samplerate = librosa.load(file_save_path, sr=SAMPLING_RATE)
-                except Exception as e:
-                    return jsonify(status="failure", reason='file not found')
-                ver_status = spk_ver.verify_spk_wavlm(spk_id, data, test_type == 'array')
-                return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
-            else:
-                return jsonify(status="failure", reason='model not found')
+            ver_status = spk_ver.verify_spk_speechbrain(spk_id, file_save_path)
+            return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
         except Exception as e:
             return jsonify(status="failure", reason='speaker verification failed')
 
 def run_spk_add(input_file, request_data):
+    '''
+    run spk add
+    '''
     tmp_dir = None
     with app.app_context():
         timestamp=""
