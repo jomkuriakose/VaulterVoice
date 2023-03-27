@@ -8,7 +8,7 @@ import os
 from speechbrain_spkver import SpeakerVerification
 spk_ver = SpeakerVerification()
 
-FILE_UPLOAD_DIR="/music/jom/Hackathon/VaulterVoice/SpkVer/uploads"
+FILE_UPLOAD_DIR="/home/smtlab/VaulterVoice/SpkVer/uploads"
 ENABLE_TIMESTAMP=True
 SAMPLING_RATE=16000
 
@@ -21,6 +21,8 @@ def run_spk_ver(input_file, request_data):
     '''
     run spk verification
     '''
+    logger.info(f"Running speaker verification function")
+    print(f"Running speaker verification function")
     tmp_dir = None
     with app.app_context():
         timestamp=""
@@ -37,11 +39,16 @@ def run_spk_ver(input_file, request_data):
         file_save_path = os.path.join(FILE_UPLOAD_DIR, filename + "_" + timestamp + "." + ext)
         input_file.save(file_save_path)
         logger.info(f"File saved at {file_save_path}")
-        spk_id = request_data["spk_id"] if "spk_id" in request_data else None
-        if spk_id is None:
+        print(f"File saved at {file_save_path}")
+        spk_id = request_data["spk_id"] if "spk_id" in request_data else "Tmp"
+        logger.info(f"spk_id: {spk_id}")
+        print(f"spk_id: {spk_id}")
+        if spk_id == "Tmp":
             return jsonify(status="failure", reason='spk_id not found')
         try:
-            ver_status = spk_ver.verify_spk_speechbrain(spk_id, file_save_path)
+            ver_status = spk_ver.verify_spk_speechbrain(spk_id, file_save_path, test_type="audio")
+            logger.info(f"ver_status: {ver_status}")
+            print(f"ver_status: {ver_status}")
             return jsonify(status="success", verification_status=ver_status), (tmp_dir, file_save_path)
         except Exception as e:
             return jsonify(status="failure", reason='speaker verification failed')
@@ -50,6 +57,8 @@ def run_spk_add(input_file, request_data):
     '''
     run spk add
     '''
+    logger.info(f"Running speaker add function")
+    print(f"Running speaker add function")
     tmp_dir = None
     with app.app_context():
         timestamp=""
@@ -66,8 +75,11 @@ def run_spk_add(input_file, request_data):
         file_save_path = os.path.join(FILE_UPLOAD_DIR, filename + "_" + timestamp + "." + ext)
         input_file.save(file_save_path)
         logger.info(f"File saved at {file_save_path}")
-        spk_id = request_data["spk_id"] if "spk_id" in request_data else None
-        if spk_id is None:
+        print(f"File saved at {file_save_path}")
+        spk_id = request_data["spk_id"] if "spk_id" in request_data else "Tmp"
+        logger.info(f"spk_id: {spk_id}")
+        print(f"spk_id: {spk_id}")
+        if spk_id == "Tmp":
             return jsonify(status="failure", reason='spk_id not found')
         try:
             spk_ver.add_spk(spk_id, file_save_path)
@@ -75,7 +87,7 @@ def run_spk_add(input_file, request_data):
         except Exception as e:
             return jsonify(status="failure", reason='audio adding failed')
 
-@app.route('/verify', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/verify', methods=['POST'], strict_slashes=False)
 def spkver():
     tmp_files = []
     request_data = request.get_json(force=True, silent=True)
@@ -101,7 +113,7 @@ def spkver():
             if tmp_file is not None:
                 subprocess.Popen(["rm","-rf",tmp_file])
 
-@app.route('/add', methods=['GET', 'POST'], strict_slashes=False)
+@app.route('/add', methods=['POST'], strict_slashes=False)
 def spkadd():
     tmp_files = []
     request_data = request.get_json(force=True, silent=True)

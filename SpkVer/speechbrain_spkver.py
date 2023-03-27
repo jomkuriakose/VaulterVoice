@@ -7,7 +7,7 @@ from speechbrain.pretrained import SpeakerRecognition
 from speechbrain.pretrained import Pretrained
 
 # location of speaker files
-spk_ref_files_folder = './spk_audio/'
+spk_ref_files_folder = '/home/smtlab/VaulterVoice/SpkVer/spk_audio/'
 
 class SpeakerVerification:
     '''
@@ -77,10 +77,10 @@ class SpeakerVerification:
         try:
             if test_type is None or test_type == 'tensor':
                 score, prediction = self.speechbrain_verification.verify_batch(ref_audio, test_audio)
-                return bool(prediction.tolist()[0][0])
+                return prediction.tolist()[0][0]
             elif test_type == 'audio':
                 score, prediction = self.speechbrain_verification.verify_files(ref_audio, test_audio)
-                return bool(prediction.tolist()[0])
+                return prediction.tolist()[0]
             else:
                 print('Error::  input type not supported')
         except Exception as e:
@@ -93,11 +93,15 @@ class SpeakerVerification:
         '''
         if spk_id in self.spk_ref.keys():
             self.spk_ref[spk_id].append(self.__load_audio(audio_file))
-            shutil.copyfile(audio_file, f"{self.spk_files_fold}/{spk_id}")
+            file_name = audio_file.split('/')[-1]
+            shutil.copyfile(audio_file, f"{self.spk_files_fold}/{spk_id}/{file_name}")
+            print(f"audio file written to: {self.spk_files_fold}/{spk_id}/{file_name}")
         else:
             self.spk_ref[spk_id] = [self.__load_audio(audio_file)]
             os.makedirs(f"{self.spk_files_fold}/{spk_id}", exist_ok = True)
-            shutil.copyfile(audio_file, f"{self.spk_files_fold}/{spk_id}")
+            file_name = audio_file.split('/')[-1]
+            shutil.copyfile(audio_file, f"{self.spk_files_fold}/{spk_id}/{file_name}")
+            print(f"audio file written to: {self.spk_files_fold}/{spk_id}/{file_name}")
     
     def verify_spk_speechbrain(self, spk_id, test_audio, test_type=None):
         '''
@@ -106,6 +110,7 @@ class SpeakerVerification:
         if test_type is None or test_type == 'tensor':
             if spk_id not in self.spk_ref.keys():
                 print(f"Error:: audio for {spk_id} not found in DB")
+                return None
             else:
                 for i in range(0, len(self.spk_ref[spk_id])):
                     if self.__spk_veri_speechbrain(self.spk_ref[spk_id][i], test_audio) == True:
@@ -116,6 +121,7 @@ class SpeakerVerification:
         elif test_type == 'audio':
             if spk_id not in self.spk_ref.keys():
                 print(f"Error:: audio for {spk_id} not found in DB")
+                return None
             else:
                 for i in range(0, len(self.spk_ref[spk_id])):
                     if self.__spk_veri_speechbrain(self.spk_ref[spk_id][i], self.__load_audio(test_audio)) == True:

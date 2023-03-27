@@ -1,0 +1,19 @@
+[2023-03-28 02:40:24 +0530] [3752608] [INFO] Starting gunicorn 20.1.0
+[2023-03-28 02:40:24 +0530] [3752608] [INFO] Listening at: http://127.0.0.1:6789 (3752608)
+[2023-03-28 02:40:24 +0530] [3752608] [INFO] Using worker: sync
+[2023-03-28 02:40:24 +0530] [3752610] [INFO] Booting worker with pid: 3752610
+Running speaker verification function
+File saved at /home/smtlab/VaulterVoice/SpkVer/uploads/jom_pin_audio_2023_03_28_02_40_44_867210.wav
+spk_id: jom
+ver_status: True
+127.0.0.1 - - [28/Mar/2023:02:40:46 +0530] "POST //verify HTTP/1.1" 200 48 "-" "PostmanRuntime/7.31.3"
+Running speaker verification function
+File saved at /home/smtlab/VaulterVoice/SpkVer/uploads/jom_pin_audio_2023_03_28_02_40_50_306617.wav
+spk_id: jom
+ver_status: True
+127.0.0.1 - - [28/Mar/2023:02:40:51 +0530] "POST //verify HTTP/1.1" 200 48 "-" "PostmanRuntime/7.31.3"
+Running speaker verification function
+File saved at /home/smtlab/VaulterVoice/SpkVer/uploads/jom_pin_audio_2023_03_28_02_40_57_802561.wav
+spk_id: jom
+ver_status: True
+127.0.0.1 - - [28/Mar/2023:02:40:59 +0530] "POST //verify HTTP/1.1" 200 48 "-" "PostmanRuntime/7.31.3"
