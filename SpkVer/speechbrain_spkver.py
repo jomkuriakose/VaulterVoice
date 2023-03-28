@@ -77,9 +77,11 @@ class SpeakerVerification:
         try:
             if test_type is None or test_type == 'tensor':
                 score, prediction = self.speechbrain_verification.verify_batch(ref_audio, test_audio)
+                print(f"score: {score}")
                 return prediction.tolist()[0][0]
             elif test_type == 'audio':
                 score, prediction = self.speechbrain_verification.verify_files(ref_audio, test_audio)
+                print(f"score: {score}")
                 return prediction.tolist()[0]
             else:
                 print('Error::  input type not supported')
